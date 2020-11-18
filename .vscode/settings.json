@@ -1,4 +1,4 @@
 {
     "python.pythonPath": "/home/capri/.pyenv/shims/python",
-    "python.dataScience.jupyterServerURI": "local"
+    "jupyter.jupyterServerType": "local"
 }
