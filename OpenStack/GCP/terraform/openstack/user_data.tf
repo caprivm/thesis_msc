@@ -1,5 +1,5 @@
 data "template_file" "ubuntu" {
-  template = "${file("/home/capri/terraform/files/ubuntu.tpl")}"
+  template = file("/home/jcaviede/autoscaling/OpenStack/GCP/terraform/files/ubuntu.tpl")
 }
 
 data "template_cloudinit_config" "ubuntu" {

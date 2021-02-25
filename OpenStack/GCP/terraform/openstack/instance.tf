@@ -1,10 +1,11 @@
 data "openstack_images_image_v2" "ubuntu" {
-  name        = "ubuntu"
+  name        = "Ubuntu1604"
   most_recent = true
+  region      = "microstack"
 }
 
 resource "openstack_compute_flavor_v2" "m1-medium" {
-  name  = "m1-medium"
+  name  = "m1.medium"
   ram   = "4096"
   vcpus = "2"
   disk  = "20"
