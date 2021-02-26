@@ -38,9 +38,13 @@ def stress_server():
 
         # Print the current time.
         print("t "+str(index))
-
-        #os.system(command)
-        #time.sleep(s)
+        
+        # Execute the stress test.
+        os.system(command)
+        
+        # Sleep a 1/5000 elapse time.
+        s = int(rps//5000)
+        time.sleep(s)
 
 def main():
     stress_server()
