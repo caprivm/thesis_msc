@@ -30,20 +30,45 @@ def stress_server():
         # Asume only the 0.00001% of this rps for testing. For instance, a neighborhood in a big city.
         rps = int(rps//100000)
         print("rps:", rps)
-
+        
+        # Use Apache Bench for stress the server
         if rps > 10000:
-            command = "ab -n "+str(rps)+" -c 1000 "+str(server_ep)+""
+            command_cpu = "ab -n "+str(rps)+" -c 1000 "+str(server_ep)+" &"
         else:
-            command = "ab -n "+str(rps)+" -c 100 "+str(server_ep)+""
+            command_cpu = "ab -n "+str(rps)+" -c 100 "+str(server_ep)+" &"
+        
+        # Get date in epoch Time
+        date_end = int(time.time())
+        date_end = time.localtime(date_end)
+        if date_end.tm_sec >= 0 and date_end.tm_sec <=30:   # Convert seconds to a valid interval in Grafana
+            date_sec = 0
+        else:
+            date_sec = 30
+        date_end = list(date_end)
+        date_end[5] = date_sec
+        date_end = tuple(date_end)
+        date_end = int(time.mktime(date_end))
+        date_start = date_end - 300   # Five minutes before
+        print("CPU Analysis | date start is:", date_start, " date end is:", date_end)
 
-        # Print the current time.
-        print("t "+str(index))
+        # Get the CPU status
+        cpu_command = "curl -u admin:kCh22RK45cEyH4n -sb -H \"Accept: application/json\" \"http://10.80.81.218:3000/api/datasources/proxy/1/api/v1/query_range?query=sum%20by%20(mode)(irate(node_cpu_seconds_total%7Bmode%3D%27idle%27%2Cinstance%3D%2210.80.81.165%3A9100%22%2Cjob%3D%22openstack%22%7D%5B5m%5D))%20*%20100&start="+str(date_start)+"&end="+str(date_end)+"&step=30\" | jq -r \'.data.result[].values[-1][1]\'"
         
-        # Execute the stress test.
-        os.system(command)
+        cpu_value = 100 - float(os.popen(cpu_command).read())
+        print("cpu value is:", cpu_value)
         
-        # Sleep a 1/5000 elapse time.
-        s = int(rps//5000)
+        # Sleep a 1/4500 elapse time.
+        s = int(rps//4500)
+        s_ram = s*0.8
+
+        # Execute the stress CPU test.
+        os.system(command_cpu)
+
+        # Execute the stress RAM test.
+        os.system("ssh debian@172.16.101.5 'stress-ng --vm 1 --vm-bytes 3G --timeout "+str(s_ram)+"' &")
+
+        # Sleep for a time.
+        print("Sleep for:", s, "seconds")
         time.sleep(s)
 
 def main():
