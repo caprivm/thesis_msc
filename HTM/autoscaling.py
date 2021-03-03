@@ -6,6 +6,12 @@ import datetime
 # Definir variables
 def stress_server():
     inputs      = []
+    threshold_cpu_max = 95
+    threshold_cpu_min = 5
+    threshold_ram_max = 80
+    threshold_ram_min = 5
+    thrgpt_usage = []
+    n_instances = 1
     server_ep   = "http://10.80.81.165/"
     data = pd.read_excel('../docs/files/Thesis_Real_Mobile_Data_DL_Traffic_202006.xlsx', index_col=0)
     for index, row in data.iterrows():
@@ -51,17 +57,28 @@ def stress_server():
         date_start = date_end - 300   # Five minutes before
         print("CPU Analysis | date start is:", date_start, " date end is:", date_end)
 
-        # Get the CPU status
-        cpu_command = "curl -u admin:kCh22RK45cEyH4n -sb -H \"Accept: application/json\" \"http://10.80.81.218:3000/api/datasources/proxy/1/api/v1/query_range?query=sum%20by%20(mode)(irate(node_cpu_seconds_total%7Bmode%3D%27idle%27%2Cinstance%3D%2210.80.81.165%3A9100%22%2Cjob%3D%22openstack%22%7D%5B5m%5D))%20*%20100&start="+str(date_start)+"&end="+str(date_end)+"&step=30\" | jq -r \'.data.result[].values[-1][1]\'"
-        
-        cpu_value = 100 - float(os.popen(cpu_command).read())
-        print("cpu value is:", cpu_value)
+        ## Get the CPU, RAM and Networking status
+        # Used CPU in %
+        get_cpu_usage = "curl -u admin:kCh22RK45cEyH4n -sb -H \"Accept: application/json\" \"http://10.80.81.218:3000/api/datasources/proxy/1/api/v1/query_range?query=sum%20by%20(mode)(irate(node_cpu_seconds_total%7Bmode%3D%27idle%27%2Cinstance%3D%2210.80.81.165%3A9100%22%2Cjob%3D%22openstack%22%7D%5B5m%5D))%20*%20100&start="+str(date_start)+"&end="+str(date_end)+"&step=30\" | jq -r \'.data.result[].values[-1][1]\'"
+        # Free RAM in Bytes 
+        get_ram_usage = "curl -u admin:kCh22RK45cEyH4n -sb -H \"Accept: application/json\" \"http://10.80.81.218:3000/api/datasources/proxy/1/api/v1/query_range?query=node_memory_MemFree_bytes%7Binstance%3D%2210.80.81.165%3A9100%22%2Cjob%3D%22openstack%22%7D&start="+str(date_start)+"&end="+str(date_end)+"&step=30\" | jq -r \'.data.result[].values[-1][1]\'"
+        get_ram_total = 4141236224
+        # Transmitted rate (bps) in network
+        get_network_usage = "curl -u admin:kCh22RK45cEyH4n -sb -H \"Accept: application/json\" \"http://10.80.81.218:3000/api/datasources/proxy/1/api/v1/query_range?query=irate(node_network_transmit_bytes_total%7Binstance%3D%2210.80.81.165%3A9100%22%2Cjob%3D%22openstack%22%7D%5B5m%5D)*8&start="+str(date_start)+"&end="+str(date_end)+"&step=30\" | jq -r \'.data.result[].values[-1][1]\'"
+
+        # Resources status
+        cpu_usage = 100 - float(os.popen(get_cpu_usage).read())
+        ram_usage = 100 - (float(os.popen(get_ram_usage).read())/get_ram_total)
+        thrgpt_usage.append( get_network_usage )
+        print("cpu value is:", cpu_usage)
+        print("ram value is:", ram_usage)
+        print("throughput value is:", thrgpt_usage[-1])
         
         # Sleep a 1/4500 elapse time.
         s = int(rps//4500)
         s_ram = s*0.8
 
-        # Execute the stress CPU test.
+        # Execute the stress CPU and NIC test.
         os.system(command_cpu)
 
         # Execute the stress RAM test.
