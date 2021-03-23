@@ -7,12 +7,12 @@ scrape_configs:
   - job_name: 'openstack'
     openstack_sd_configs:
       - role: 'instance'
-        region: 'microstack'
-        identity_endpoint: 'http://10.20.20.1:5000/v3/'
-        domain_name: 'default'
-        userid: '4dfe6f20436047159e21fc8ae0efbb9a'
-        application_credential_id: '0c87aac399244f52800f2ffab484d3d4'
-        application_credential_secret: 'sJbZXO0c3lxCvRwm8Udjq96vgUC0jATceyPQrA-1r_9K_Dtovgu4ueU-XZ4_aywCr8OGx2BPSK3kwwslwkIaNg'
+        region: 'RegionOne'
+        identity_endpoint: 'http://10.80.81.1:5000/v3/'
+        username: 'j.caviedes'
+        domain_id: 'default'
+        project_name: 'k8s PoC ORAN'
+        password: 'JC22062020cv'
     relabel_configs:
       - source_labels: [__meta_openstack_public_ip]
         target_label: __address__

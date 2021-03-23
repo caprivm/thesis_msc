@@ -3,7 +3,7 @@ import os
 import time
 import datetime
 
-# Definir variables
+# Define variables
 def stress_server():
     inputs      = []
     threshold_cpu_max = 95
@@ -33,8 +33,14 @@ def stress_server():
         # rps (request per sample)
         rps = avg_bytes//length_httpget   # Integer part of division.
 
-        # Asume only the 0.00001% of this rps for testing. For instance, a neighborhood in a big city.
-        rps = int(rps//100000)
+        # Asume only the 0.00001% of this rps for testing. For instance, a neighborhood in a big city. 
+        # Consider that I not implemented a LB system, the else condition allow divide the load to the 
+        # server as a load balancer system.
+        if n_instances == 1:
+            rps = int(rps//100000)
+        else:
+            factor = 8
+            rps = int(rps//(100000*factor))
         print("rps:", rps)
         
         # Use Apache Bench for stress the server
@@ -61,32 +67,44 @@ def stress_server():
         # Used CPU in %
         get_cpu_usage = "curl -u admin:kCh22RK45cEyH4n -sb -H \"Accept: application/json\" \"http://10.80.81.218:3000/api/datasources/proxy/1/api/v1/query_range?query=sum%20by%20(mode)(irate(node_cpu_seconds_total%7Bmode%3D%27idle%27%2Cinstance%3D%2210.80.81.165%3A9100%22%2Cjob%3D%22openstack%22%7D%5B5m%5D))%20*%20100&start="+str(date_start)+"&end="+str(date_end)+"&step=30\" | jq -r \'.data.result[].values[-1][1]\'"
         # Free RAM in Bytes 
-        get_ram_usage = "curl -u admin:kCh22RK45cEyH4n -sb -H \"Accept: application/json\" \"http://10.80.81.218:3000/api/datasources/proxy/1/api/v1/query_range?query=node_memory_MemFree_bytes%7Binstance%3D%2210.80.81.165%3A9100%22%2Cjob%3D%22openstack%22%7D&start="+str(date_start)+"&end="+str(date_end)+"&step=30\" | jq -r \'.data.result[].values[-1][1]\'"
+        get_ram_free = "curl -u admin:kCh22RK45cEyH4n -sb -H \"Accept: application/json\" \"http://10.80.81.218:3000/api/datasources/proxy/1/api/v1/query_range?query=node_memory_MemFree_bytes%7Binstance%3D%2210.80.81.165%3A9100%22%2Cjob%3D%22openstack%22%7D&start="+str(date_start)+"&end="+str(date_end)+"&step=30\" | jq -r \'.data.result[].values[-1][1]\'"
         get_ram_total = 4141236224
         # Transmitted rate (bps) in network
         get_network_usage = "curl -u admin:kCh22RK45cEyH4n -sb -H \"Accept: application/json\" \"http://10.80.81.218:3000/api/datasources/proxy/1/api/v1/query_range?query=irate(node_network_transmit_bytes_total%7Binstance%3D%2210.80.81.165%3A9100%22%2Cjob%3D%22openstack%22%7D%5B5m%5D)*8&start="+str(date_start)+"&end="+str(date_end)+"&step=30\" | jq -r \'.data.result[].values[-1][1]\'"
 
         # Resources status
         cpu_usage = 100 - float(os.popen(get_cpu_usage).read())
-        ram_usage = 100 - (float(os.popen(get_ram_usage).read())/get_ram_total)
-        thrgpt_usage.append( get_network_usage )
-        print("cpu value is:", cpu_usage)
-        print("ram value is:", ram_usage)
+        ram_usage = 100 * (float(get_ram_total) - float(os.popen(get_ram_free).read()))/float(get_ram_total)
+        thrgpt_usage.append( os.popen(get_network_usage).read() )
+        print("cpu usage is:", cpu_usage)
+        print("ram usage is:", ram_usage)
         print("throughput value is:", thrgpt_usage[-1])
         
         # Sleep a 1/4500 elapse time.
         s = int(rps//4500)
-        s_ram = s*0.8
+        s_ram = s*1.0
+        if n_instances == 1:
+            stress_ram = "3G"
+        else:
+            stress_ram = "1G"
+        
+        if (cpu_usage > threshold_cpu_max) and (n_instances == 1):
+            os.system("sh ~/autoscaling/autoscale.sh")
+            n_instances = n_instances + 1
 
         # Execute the stress CPU and NIC test.
         os.system(command_cpu)
 
         # Execute the stress RAM test.
-        os.system("ssh debian@172.16.101.5 'stress-ng --vm 1 --vm-bytes 3G --timeout "+str(s_ram)+"' &")
+        os.system("ssh debian@172.16.101.10 'stress-ng --vm 1 --vm-bytes "+str(stress_ram)+" --timeout "+str(s_ram)+"' &")
 
         # Sleep for a time.
-        print("Sleep for:", s, "seconds")
-        time.sleep(s)
+        if n_instances == 1:
+            time.sleep(s)
+            print("Sleep for:", s, "seconds")
+        else:
+            time.sleep(2*s)
+            print("Sleep for:", 2*s, "seconds")
 
 def main():
     stress_server()

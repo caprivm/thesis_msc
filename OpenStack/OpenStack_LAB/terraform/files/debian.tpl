@@ -10,6 +10,7 @@ runcmd:
  - sudo apt update && sudo apt install -y apache2
  - sudo systemctl restart apache2
  - sudo apt install -y prometheus-node-exporter
+ - sudo apt install -y stress-ng
  - sudo mkdir -p /var/www/example.com
  - sudo chown -R $USER:$USER /var/www/example.com
  - sudo chmod -R 755 /var/www/example.com
