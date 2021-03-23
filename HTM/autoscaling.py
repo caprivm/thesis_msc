@@ -6,6 +6,9 @@ import datetime
 # Define variables
 def stress_server():
     inputs      = []
+    pd_cpu_usage = 0
+    pd_ram_usage = 0
+    pd_thrgpt_usage = 0
     threshold_cpu_max = 95
     threshold_cpu_min = 5
     threshold_ram_max = 80
@@ -65,12 +68,12 @@ def stress_server():
 
         ## Get the CPU, RAM and Networking status
         # Used CPU in %
-        get_cpu_usage = "curl -u admin:kCh22RK45cEyH4n -sb -H \"Accept: application/json\" \"http://10.80.81.218:3000/api/datasources/proxy/1/api/v1/query_range?query=sum%20by%20(mode)(irate(node_cpu_seconds_total%7Bmode%3D%27idle%27%2Cinstance%3D%2210.80.81.165%3A9100%22%2Cjob%3D%22openstack%22%7D%5B5m%5D))%20*%20100&start="+str(date_start)+"&end="+str(date_end)+"&step=30\" | jq -r \'.data.result[].values[-1][1]\'"
+        get_cpu_usage = "curl -u admin:kCh22RK45cEyH4n -sb -H \"Accept: application/json\" \"http://10.80.81.189:3000/api/datasources/proxy/1/api/v1/query_range?query=sum%20by%20(mode)(irate(node_cpu_seconds_total%7Bmode%3D%27idle%27%2Cinstance%3D%2210.80.81.165%3A9100%22%2Cjob%3D%22openstack%22%7D%5B5m%5D))%20*%20100&start="+str(date_start)+"&end="+str(date_end)+"&step=30\" | jq -r \'.data.result[].values[-1][1]\'"
         # Free RAM in Bytes 
-        get_ram_free = "curl -u admin:kCh22RK45cEyH4n -sb -H \"Accept: application/json\" \"http://10.80.81.218:3000/api/datasources/proxy/1/api/v1/query_range?query=node_memory_MemFree_bytes%7Binstance%3D%2210.80.81.165%3A9100%22%2Cjob%3D%22openstack%22%7D&start="+str(date_start)+"&end="+str(date_end)+"&step=30\" | jq -r \'.data.result[].values[-1][1]\'"
+        get_ram_free = "curl -u admin:kCh22RK45cEyH4n -sb -H \"Accept: application/json\" \"http://10.80.81.189:3000/api/datasources/proxy/1/api/v1/query_range?query=node_memory_MemFree_bytes%7Binstance%3D%2210.80.81.165%3A9100%22%2Cjob%3D%22openstack%22%7D&start="+str(date_start)+"&end="+str(date_end)+"&step=30\" | jq -r \'.data.result[].values[-1][1]\'"
         get_ram_total = 4141236224
         # Transmitted rate (bps) in network
-        get_network_usage = "curl -u admin:kCh22RK45cEyH4n -sb -H \"Accept: application/json\" \"http://10.80.81.218:3000/api/datasources/proxy/1/api/v1/query_range?query=irate(node_network_transmit_bytes_total%7Binstance%3D%2210.80.81.165%3A9100%22%2Cjob%3D%22openstack%22%7D%5B5m%5D)*8&start="+str(date_start)+"&end="+str(date_end)+"&step=30\" | jq -r \'.data.result[].values[-1][1]\'"
+        get_network_usage = "curl -u admin:kCh22RK45cEyH4n -sb -H \"Accept: application/json\" \"http://10.80.81.189:3000/api/datasources/proxy/1/api/v1/query_range?query=irate(node_network_transmit_bytes_total%7Binstance%3D%2210.80.81.165%3A9100%22%2Cjob%3D%22openstack%22%7D%5B5m%5D)*8&start="+str(date_start)+"&end="+str(date_end)+"&step=30\" | jq -r \'.data.result[].values[-1][1]\'"
 
         # Resources status
         cpu_usage = 100 - float(os.popen(get_cpu_usage).read())
@@ -83,14 +86,22 @@ def stress_server():
         # Sleep a 1/4500 elapse time.
         s = int(rps//4500)
         s_ram = s*1.0
+
+        # Generate some stress test forever to original instance
         if n_instances == 1:
             stress_ram = "3G"
         else:
             stress_ram = "1G"
         
+        # Auto-scaling Algorithm for CPU values
         if (cpu_usage > threshold_cpu_max) and (n_instances == 1):
-            os.system("sh ~/autoscaling/autoscale.sh")
-            n_instances = n_instances + 1
+            if (pd_cpu_usage > threshold_cpu_max):
+                print("The system will saturate")
+                os.system("sh ~/autoscaling/autoscale.sh")
+                n_instances = n_instances + 1
+            else:
+                
+
 
         # Execute the stress CPU and NIC test.
         os.system(command_cpu)
