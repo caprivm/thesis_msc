@@ -23,6 +23,10 @@ def building_htm(len_data):
     global sp
     global scalarEncoder
     global encodingWidth
+    global dateEncoder
+
+    # Initial message
+    print("Building HTM for predicting trends...")
 
     # Default parameters in HTM
     default_parameters = {
@@ -58,6 +62,7 @@ def building_htm(len_data):
     }
 
     # Make the encoder
+    print("- Make the encoder")
     dateEncoder = DateEncoder(timeOfDay= default_parameters["enc"]["time"]["timeOfDay"])
     scalarEncoderParams             = RDSE_Parameters()
     scalarEncoderParams.size        = default_parameters["enc"]["value"]["size"]
@@ -66,8 +71,9 @@ def building_htm(len_data):
     scalarEncoder = RDSE( scalarEncoderParams )
     encodingWidth = (dateEncoder.size + scalarEncoder.size)
     enc_info = Metrics( [encodingWidth], 999999999)
-
-    # Make the HTM
+    
+    # Make the SP
+    print("- Make the SP")
     spParams = default_parameters["sp"]
     sp = SpatialPooler(
         inputDimensions            = (encodingWidth,),
@@ -85,6 +91,7 @@ def building_htm(len_data):
     sp_info = Metrics( sp.getColumnDimensions(), 999999999 )
 
     # Temporal Memory Parameters
+    print("- Make the TM")
     tmParams = default_parameters["tm"]
     tm = TemporalMemory(
         columnDimensions          = (spParams["columnCount"],),
@@ -103,6 +110,7 @@ def building_htm(len_data):
     tm_info = Metrics( [tm.numberOfCells()], 999999999 )
 
     # Setup Likelihood
+    print("- Make Anomaly Score/Likelihood")
     anParams           = default_parameters["anomaly"]["likelihood"]
     probationaryPeriod = int(math.floor(float(anParams["probationaryPct"])*len_data))
     learningPeriod     = int(math.floor(probationaryPeriod / 2.0))
@@ -111,8 +119,12 @@ def building_htm(len_data):
                                         reestimationPeriod= anParams["reestimationPeriod"])
 
     # Make predictor
+    print("- Make the predictor")
     predictor = Predictor( steps=[1, 5], alpha=default_parameters["predictor"]['sdrc_alpha'] )
     predictor_resolution = 1
+    
+    # End message
+    print("Finish the building of HTM")
 
 # Define function to get the CPU, RAM and Networking status
 def get_resources_values():
@@ -143,6 +155,14 @@ def get_resources_values():
     return cpu_usage, ram_usage, thrgpt_usage
 
 def cpu_algorithm(cpu_usage,n_instances):
+    global threshold_cpu_max
+    global threshold_cpu_min
+    global predictions
+    global anomaly
+    global anomalyProb
+
+    threshold_cpu_max = 95
+    threshold_cpu_min = 5
     predictions = {1: [], 5: []}
     anomaly     = []
     anomalyProb = []
@@ -183,34 +203,41 @@ def cpu_algorithm(cpu_usage,n_instances):
     predictor.learn(count, tm.getActiveCells(), int( cpu_usage / predictor_resolution))
 
     # Algorithm
-    pd_cpu_usage = predictions[5]
+    pd_cpu_usage = float(predictions[1][-1])
+    print("cpu_usage is:", cpu_usage)
+    print("pd_cpu_usage is:", pd_cpu_usage)
     if (cpu_usage > threshold_cpu_max) and (n_instances == 1):
         if (pd_cpu_usage > threshold_cpu_max):
             print("The system will saturate")
             os.system("sh ~/autoscaling/autoscale.sh")
             n_instances = n_instances + 1
         else:
-            print("The system")
+            print("The system is beautiful!")
+    
+    # Return Prediction
+    return pd_cpu_usage
 
-
-# Define variables
+# Define main global variables
 def global_thresholds():
-    global threshold_cpu_max
-    global threshold_cpu_min
+    print("Define main Global Variables for autoscaling...")
     global threshold_ram_max
     global threshold_ram_min
-    global n_instances
-    global count
-    threshold_cpu_max = 95
-    threshold_cpu_min = 5
     threshold_ram_max = 80
     threshold_ram_min = 5
-    n_instances = 1
-    count = 0
+    print("Global variables have already been defined!")
 
 def stress_server(data):
+    # Initial Message
+    print("Come to stress the server...")
+    
+    # Variables
     global dateBits
+    global count
+    global n_instances
+
     inputs      = []
+    count       = 0
+    n_instances = 1
     pd_cpu_usage = 0
     pd_ram_usage = 0
     pd_thrgpt_usage = 0
@@ -219,6 +246,11 @@ def stress_server(data):
     for index, row in data.iterrows():
         # Use count control variable
         count = count + 1
+
+        # Control Message
+        print("####################")
+        print("ITERATION NUMBER: ", count)
+        print("####################")
         
         # Convert date string into Python date object. # 2020-06-01 00:15:00
         dateString = datetime.datetime.strptime(str(index), "%Y-%m-%d %H:%M:%S")
@@ -244,9 +276,10 @@ def stress_server(data):
         # Consider that I not implemented a LB system, the else condition allow divide the load to the 
         # server as a load balancer system.
         if n_instances == 1:
-            rps = int(rps//100000)
+            factor = 10
+            rps = int(rps//(100000*factor))
         else:
-            factor = 8
+            factor = 80
             rps = int(rps//(100000*factor))
         print("rps:", rps)
         
@@ -259,10 +292,12 @@ def stress_server(data):
         # Read resources values
         cpu_usage, ram_usage, thrgpt_usage_to_append =  get_resources_values()
         thrgpt_usage.append(thrgpt_usage_to_append)
-        print("cpu usage is:", cpu_usage)
         print("ram usage is:", ram_usage)
         print("throughput value is:", thrgpt_usage_to_append)
 
+        # CPU Algorithm
+        pd_cpu_usage = cpu_algorithm(cpu_usage,n_instances)
+        
         # Sleep a 1/4500 elapse time.
         s = int(rps//4500)
         s_ram = s*1.0
@@ -272,11 +307,9 @@ def stress_server(data):
             stress_ram = "3G"
         else:
             stress_ram = "1G"
-        
-        # Execute the stress CPU and NIC test.
-        os.system(command_cpu)
 
-        # Execute the stress RAM test.
+        # Execute the stress CPU, NIC and RAM test.
+        os.system(command_cpu)
         os.system("ssh debian@172.16.101.10 'stress-ng --vm 1 --vm-bytes "+str(stress_ram)+" --timeout "+str(s_ram)+"' &")
 
         # Sleep for a time.
@@ -286,11 +319,13 @@ def stress_server(data):
         else:
             time.sleep(2*s)
             print("Sleep for:", 2*s, "seconds")
+        
+        print()
 
 def main():
     data = pd.read_excel('../docs/files/Thesis_Real_Mobile_Data_DL_Traffic_202006.xlsx', index_col=0)
-    global_thresholds()
     building_htm(len(data))
+    global_thresholds()
     stress_server(data)
 
 if __name__ == "__main__":
