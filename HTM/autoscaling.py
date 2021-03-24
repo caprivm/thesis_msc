@@ -3,6 +3,34 @@ import os
 import time
 import datetime
 
+# Define function to get the CPU, RAM and Networking status
+def get_resources_values():
+    # Get date in epoch Time
+    date_end = int(time.time())
+    date_end = time.localtime(date_end)
+    if date_end.tm_sec >= 0 and date_end.tm_sec <=30:   # Convert seconds to a valid interval in Grafana
+        date_sec = 0
+    else:
+        date_sec = 30
+    date_end = list(date_end)
+    date_end[5] = date_sec
+    date_end = tuple(date_end)
+    date_end = int(time.mktime(date_end))   # To epoch time
+    date_start = date_end - 300   # Five minutes before
+    # Used CPU in %
+    get_cpu_usage = "curl -u admin:kCh22RK45cEyH4n -sb -H \"Accept: application/json\" \"http://10.80.81.189:3000/api/datasources/proxy/1/api/v1/query_range?query=sum%20by%20(mode)(irate(node_cpu_seconds_total%7Bmode%3D%27idle%27%2Cinstance%3D%2210.80.81.165%3A9100%22%2Cjob%3D%22openstack%22%7D%5B5m%5D))%20*%20100&start="+str(date_start)+"&end="+str(date_end)+"&step=30\" | jq -r \'.data.result[].values[-1][1]\'"
+    # Free RAM in Bytes
+    get_ram_free = "curl -u admin:kCh22RK45cEyH4n -sb -H \"Accept: application/json\" \"http://10.80.81.189:3000/api/datasources/proxy/1/api/v1/query_range?query=node_memory_MemFree_bytes%7Binstance%3D%2210.80.81.165%3A9100%22%2Cjob%3D%22openstack%22%7D&start="+str(date_start)+"&end="+str(date_end)+"&step=30\" | jq -r \'.data.result[].values[-1][1]\'"
+    get_ram_total = 4141236224  # 4 GiB Memory
+    # Transmitted rate (bps) in network
+    get_network_usage = "curl -u admin:kCh22RK45cEyH4n -sb -H \"Accept: application/json\" \"http://10.80.81.189:3000/api/datasources/proxy/1/api/v1/query_range?query=irate(node_network_transmit_bytes_total%7Binstance%3D%2210.80.81.165%3A9100%22%2Cjob%3D%22openstack%22%7D%5B5m%5D)*8&start="+str(date_start)+"&end="+str(date_end)+"&step=30\" | jq -r \'.data.result[].values[-1][1]\'"
+    # Resources status
+    cpu_usage = 100 - float(os.popen(get_cpu_usage).read())
+    ram_usage = 100 * (float(get_ram_total) - float(os.popen(get_ram_free).read()))/float(get_ram_total)
+    thrgpt_usage = os.popen(get_network_usage).read()
+    # Return values
+    return cpu_usage, ram_usage, thrgpt_usage
+
 # Define variables
 def stress_server():
     inputs      = []
@@ -21,7 +49,7 @@ def stress_server():
         
         # Convert date string into Python date object. # 2020-06-01 00:15:00
         dateString = datetime.datetime.strptime(str(index), "%Y-%m-%d %H:%M:%S")
-        print(dateString)
+        print("Process date: ", dateString)
 
         # Convert data value string into float.
         consumption = float(row[0])/1024
@@ -51,38 +79,15 @@ def stress_server():
             command_cpu = "ab -n "+str(rps)+" -c 1000 "+str(server_ep)+" &"
         else:
             command_cpu = "ab -n "+str(rps)+" -c 100 "+str(server_ep)+" &"
-        
-        # Get date in epoch Time
-        date_end = int(time.time())
-        date_end = time.localtime(date_end)
-        if date_end.tm_sec >= 0 and date_end.tm_sec <=30:   # Convert seconds to a valid interval in Grafana
-            date_sec = 0
-        else:
-            date_sec = 30
-        date_end = list(date_end)
-        date_end[5] = date_sec
-        date_end = tuple(date_end)
-        date_end = int(time.mktime(date_end))
-        date_start = date_end - 300   # Five minutes before
-        print("CPU Analysis | date start is:", date_start, " date end is:", date_end)
 
-        ## Get the CPU, RAM and Networking status
-        # Used CPU in %
-        get_cpu_usage = "curl -u admin:kCh22RK45cEyH4n -sb -H \"Accept: application/json\" \"http://10.80.81.189:3000/api/datasources/proxy/1/api/v1/query_range?query=sum%20by%20(mode)(irate(node_cpu_seconds_total%7Bmode%3D%27idle%27%2Cinstance%3D%2210.80.81.165%3A9100%22%2Cjob%3D%22openstack%22%7D%5B5m%5D))%20*%20100&start="+str(date_start)+"&end="+str(date_end)+"&step=30\" | jq -r \'.data.result[].values[-1][1]\'"
-        # Free RAM in Bytes 
-        get_ram_free = "curl -u admin:kCh22RK45cEyH4n -sb -H \"Accept: application/json\" \"http://10.80.81.189:3000/api/datasources/proxy/1/api/v1/query_range?query=node_memory_MemFree_bytes%7Binstance%3D%2210.80.81.165%3A9100%22%2Cjob%3D%22openstack%22%7D&start="+str(date_start)+"&end="+str(date_end)+"&step=30\" | jq -r \'.data.result[].values[-1][1]\'"
-        get_ram_total = 4141236224
-        # Transmitted rate (bps) in network
-        get_network_usage = "curl -u admin:kCh22RK45cEyH4n -sb -H \"Accept: application/json\" \"http://10.80.81.189:3000/api/datasources/proxy/1/api/v1/query_range?query=irate(node_network_transmit_bytes_total%7Binstance%3D%2210.80.81.165%3A9100%22%2Cjob%3D%22openstack%22%7D%5B5m%5D)*8&start="+str(date_start)+"&end="+str(date_end)+"&step=30\" | jq -r \'.data.result[].values[-1][1]\'"
-
-        # Resources status
-        cpu_usage = 100 - float(os.popen(get_cpu_usage).read())
-        ram_usage = 100 * (float(get_ram_total) - float(os.popen(get_ram_free).read()))/float(get_ram_total)
-        thrgpt_usage.append( os.popen(get_network_usage).read() )
+        # Read resources values
+        cpu_usage, ram_usage, thrgpt_usage_to_append =  get_resources_values()
+        thrgpt_usage.append(thrgpt_usage_to_append)
         print("cpu usage is:", cpu_usage)
         print("ram usage is:", ram_usage)
-        print("throughput value is:", thrgpt_usage[-1])
-        
+        print("throughput value is:", thrgpt_usage_to_append)
+        time.sleep(600)
+
         # Sleep a 1/4500 elapse time.
         s = int(rps//4500)
         s_ram = s*1.0
@@ -100,9 +105,8 @@ def stress_server():
                 os.system("sh ~/autoscaling/autoscale.sh")
                 n_instances = n_instances + 1
             else:
-                
-
-
+                print("The system")
+        
         # Execute the stress CPU and NIC test.
         os.system(command_cpu)
 
