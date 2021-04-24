@@ -30,7 +30,7 @@ def building_htm(len_data):
 
     # Default parameters in HTM
     default_parameters = {
-        # there are 2 (3) encoders: "value" (RDSE) & "time" (DateTime weekend, timeOfDay)
+        # There are 2 (3) encoders: "value" (RDSE) & "time" (DateTime weekend, timeOfDay)
         'enc': {
             "value" :
                 {'resolution': 0.88, 'size': 700, 'sparsity': 0.02},
@@ -124,11 +124,12 @@ def building_htm(len_data):
     predictor_resolution = 1
     
     # End message
-    print("Finish the building of HTM")
+    print("- Finish the building of HTM!")
 
-# Define function to get the CPU, RAM and Networking status
 def get_resources_values():
-    # Get date in epoch Time
+    ##################################################################
+    # GET DATE IN EPOCH TIME AND ADJUST TO A VALID INTERVAL IN GRAFANA
+    ##################################################################
     date_end = int(time.time())
     date_end = time.localtime(date_end)
     if date_end.tm_sec >= 0 and date_end.tm_sec <=30:   # Convert seconds to a valid interval in Grafana
@@ -139,19 +140,20 @@ def get_resources_values():
     date_end[5] = date_sec
     date_end = tuple(date_end)
     date_end = int(time.mktime(date_end))   # To epoch time
-    date_start = date_end - 300   # Five minutes before
-    # Used CPU in %
+    date_start = date_end - 300             # Five minutes before
+
+    ######################
+    # GET RESOURCES VALUES
+    ######################
     get_cpu_usage = "curl -u admin:orion -sb -H \"Accept: application/json\" \"http://10.80.81.189:3000/api/datasources/proxy/1/api/v1/query_range?query=sum%20by%20(mode)(irate(node_cpu_seconds_total%7Bmode%3D%27idle%27%2Cinstance%3D%2210.80.81.165%3A9100%22%2Cjob%3D%22openstack%22%7D%5B5m%5D))%20*%20100&start="+str(date_start)+"&end="+str(date_end)+"&step=30\" | jq -r \'.data.result[].values[-1][1]\'"
-    # Free RAM in Bytes
     get_ram_free = "curl -u admin:orion -sb -H \"Accept: application/json\" \"http://10.80.81.189:3000/api/datasources/proxy/1/api/v1/query_range?query=node_memory_MemFree_bytes%7Binstance%3D%2210.80.81.165%3A9100%22%2Cjob%3D%22openstack%22%7D&start="+str(date_start)+"&end="+str(date_end)+"&step=30\" | jq -r \'.data.result[].values[-1][1]\'"
-    get_ram_total = 4141236224  # 4 GiB Memory
-    # Transmitted rate (bps) in network
+    get_ram_total = 4141236224  
     get_network_usage = "curl -u admin:orion -sb -H \"Accept: application/json\" \"http://10.80.81.189:3000/api/datasources/proxy/1/api/v1/query_range?query=irate(node_network_transmit_bytes_total%7Binstance%3D%2210.80.81.165%3A9100%22%2Cjob%3D%22openstack%22%7D%5B5m%5D)*8&start="+str(date_start)+"&end="+str(date_end)+"&step=30\" | jq -r \'.data.result[].values[-1][1]\'"
     # Resources status
-    cpu_usage = 100 - float(os.popen(get_cpu_usage).read())
-    ram_usage = 100 * (float(get_ram_total) - float(os.popen(get_ram_free).read()))/float(get_ram_total)
-    thrgpt_usage = os.popen(get_network_usage).read()
-    # Return values
+    cpu_usage = 100 - float(os.popen(get_cpu_usage).read())                                                 # Used CPU in percentage
+    ram_usage = 100 * (float(get_ram_total) - float(os.popen(get_ram_free).read()))/float(get_ram_total)    # Free RAM in Bytes, consider 4 GiB Memory
+    thrgpt_usage = os.popen(get_network_usage).read()                                                       # Transmitted rate (bps) in network
+
     return cpu_usage, ram_usage, thrgpt_usage
 
 def cpu_algorithm(cpu_usage,n_instances):
@@ -163,10 +165,14 @@ def cpu_algorithm(cpu_usage,n_instances):
 
     threshold_cpu_max = 95
     threshold_cpu_min = 5
+    time_sleeping     = 30
     predictions = {1: [], 5: []}
     anomaly     = []
     anomalyProb = []
 
+    ##############################
+    # MAKE THE PREDICTION WITH HTM
+    ##############################
     # Auto-scaling Algorithm for CPU values
     consumptionBits = scalarEncoder.encode(cpu_usage)
 
@@ -201,8 +207,10 @@ def cpu_algorithm(cpu_usage,n_instances):
 
     # Learning
     predictor.learn(count, tm.getActiveCells(), int( cpu_usage / predictor_resolution))
-
-    # Algorithm
+    
+    ###########################
+    # ALGORITHM FOR AUTOSCALING
+    ###########################
     pd_cpu_usage = float(predictions[1][-1])
     print("cpu_usage is:", cpu_usage)
     print("pd_cpu_usage is:", pd_cpu_usage)
@@ -212,19 +220,274 @@ def cpu_algorithm(cpu_usage,n_instances):
             os.system("sh ~/autoscaling/autoscale.sh")
             n_instances = n_instances + 1
         else:
-            print("The system is beautiful!")
+            time.sleep(time_sleeping)  # Sleep while new data is getting
+            if (cpu_usage > threshold_cpu_max) and (n_instances == 1):
+                print("Wrong prediction. The system will saturate.")
+                os.system("sh ~/autoscaling/autoscale.sh")
+                n_instances = n_instances + 1
+            else:
+                if (pd_cpu_usage > threshold_cpu_max):
+                    time.sleep(time_sleeping)
+                    if (cpu_usage > threshold_cpu_max) and (n_instances == 1):
+                        print("Correct prediction. The system will saturate.")
+                        os.system("sh ~/autoscaling/autoscale.sh")
+                        n_instances = n_instances + 1
+                    else:
+                        time.sleep(time_sleeping)
+                        print("The system it was not saturate.")
+                else:
+                    time.sleep(time_sleeping)
+                    print("The system will not saturate.")
+    else:
+        if (cpu_usage < threshold_cpu_min):
+            if (pd_cpu_usage < threshold_cpu_min):
+                if (n_instances == 1):
+                    print("Instances cannot be deleted. It is suggested to reduce the resources of the instance.")
+                else:
+                    print("The system will be oversized.")
+                    os.system("sh ~/autoscaling/autoreduce.sh")
+                    n_instances = n_instances - 1
+            else:
+                time.sleep(time_sleeping)
+                if (cpu_usage < threshold_cpu_min):
+                    if (n_instances == 1):
+                        print("Instances cannot be deleted. It is suggested to reduce the resources of the instance.")
+                    else:
+                        print("The system will be oversized.")
+                        os.system("sh ~/autoscaling/autoreduce.sh")
+                        n_instances = n_instances - 1
+                else:
+                    if (pd_cpu_usage < threshold_cpu_min):
+                        time.sleep(time_sleeping)
+                        if (cpu_usage < threshold_cpu_min):
+                            if (n_instances == 1):
+                                print("Instances cannot be deleted. It is suggested to reduce the resources of the instance.")
+                            else:
+                                print("The system will be oversized.")
+                                os.system("sh ~/autoscaling/autoreduce.sh")
+                                n_instances = n_instances - 1
+                        else:
+                            time.sleep(time_sleeping)
+                            print("The system no will be oversized.")
+                    else:
+                        time.sleep(time_sleeping)
+                        print("The system no will be oversized.")
+        else:
+            if (pd_cpu_usage > threshold_cpu_max) or (pd_cpu_usage < threshold_cpu_min):
+                time.sleep(time_sleeping)
+                print("The system may exceed any of the thresholds.")
+            else:
+                time.sleep(time_sleeping)
+                print("Maintains normal behavior.")
     
-    # Return Prediction
     return pd_cpu_usage
 
-# Define main global variables
-def global_thresholds():
-    print("Define main Global Variables for autoscaling...")
+""" def ram_algorithm(ram_usage,n_instances):
     global threshold_ram_max
     global threshold_ram_min
+    global predictions
+    global anomaly
+    global anomalyProb
+
     threshold_ram_max = 80
     threshold_ram_min = 5
-    print("Global variables have already been defined!")
+    time_sleeping     = 30
+    predictions = {1: [], 5: []}
+    anomaly     = []
+    anomalyProb = []
+
+    ##############################
+    # MAKE THE PREDICTION WITH HTM
+    ##############################
+    # Auto-scaling Algorithm for RAM values
+    consumptionBits = scalarEncoder.encode(ram_usage)
+
+    # Concatenate all these encodings into one large encoding for Spatial Pooling.
+    encoding = SDR( encodingWidth ).concatenate([consumptionBits, dateBits])
+    enc_info.addData( encoding )
+
+    # Create an SDR to represent active columns, This will be populated by the
+    # compute method below. It must have the same dimensions as the Spatial Pooler.
+    activeColumns = SDR( sp.getColumnDimensions() )
+
+    # Execute Spatial Pooling algorithm over input space.
+    sp.compute(encoding, True, activeColumns)
+    sp_info.addData( activeColumns )
+
+    # Execute Temporal Memory algorithm over active mini-columns.
+    tm.compute(activeColumns, learn=True)
+    tm_info.addData( tm.getActiveCells().flatten() )
+
+    # Predict what will happen, and then train the predictor based on what just happened.
+    pdf = predictor.infer( tm.getActiveCells() )
+    for n in (1, 5):
+        if pdf[n]:
+            predictions[n].append( np.argmax( pdf[n] ) * predictor_resolution )
+        else:
+            predictions[n].append(float('nan'))
+
+    # Compute Anomaly Likelihood
+    anomalyLikelihood = anomaly_history.anomalyProbability( ram_usage, tm.anomaly )
+    anomaly.append( tm.anomaly )
+    anomalyProb.append( float(2*(1-anomalyLikelihood)) )
+
+    # Learning
+    predictor.learn(count, tm.getActiveCells(), int( ram_usage / predictor_resolution))
+    
+    ###########################
+    # ALGORITHM FOR AUTOSCALING
+    ###########################
+    pd_ram_usage = float(predictions[1][-1])
+    print("ram_usage is:", ram_usage)
+    print("pd_ram_usage is:", pd_ram_usage)
+    if (ram_usage > threshold_ram_max) and (n_instances == 1):
+        if (pd_ram_usage > threshold_ram_max):
+            print("The system will saturate")
+            os.system("sh ~/autoscaling/autoscale.sh")
+            n_instances = n_instances + 1
+        else:
+            time.sleep(time_sleeping)  # Sleep while new data is getting
+            if (ram_usage > threshold_ram_max) and (n_instances == 1):
+                print("Wrong prediction. The system will saturate.")
+                os.system("sh ~/autoscaling/autoscale.sh")
+                n_instances = n_instances + 1
+            else:
+                if (pd_ram_usage > threshold_ram_max):
+                    time.sleep(time_sleeping)
+                    if (ram_usage > threshold_ram_max) and (n_instances == 1):
+                        print("Correct prediction. The system will saturate.")
+                        os.system("sh ~/autoscaling/autoscale.sh")
+                        n_instances = n_instances + 1
+                    else:
+                        time.sleep(time_sleeping)
+                        print("The system it was not saturate.")
+                else:
+                    time.sleep(time_sleeping)
+                    print("The system will not saturate.")
+    else:
+        if (ram_usage < threshold_ram_min):
+            if (pd_ram_usage < threshold_ram_min):
+                if (n_instances == 1):
+                    print("Instances cannot be deleted. It is suggested to reduce the resources of the instance.")
+                else:
+                    print("The system will be oversized.")
+                    os.system("sh ~/autoscaling/autoreduce.sh")
+                    n_instances = n_instances - 1
+            else:
+                time.sleep(time_sleeping)
+                if (ram_usage < threshold_ram_min):
+                    if (n_instances == 1):
+                        print("Instances cannot be deleted. It is suggested to reduce the resources of the instance.")
+                    else:
+                        print("The system will be oversized.")
+                        os.system("sh ~/autoscaling/autoreduce.sh")
+                        n_instances = n_instances - 1
+                else:
+                    if (pd_ram_usage < threshold_ram_min):
+                        time.sleep(time_sleeping)
+                        if (ram_usage < threshold_ram_min):
+                            if (n_instances == 1):
+                                print("Instances cannot be deleted. It is suggested to reduce the resources of the instance.")
+                            else:
+                                print("The system will be oversized.")
+                                os.system("sh ~/autoscaling/autoreduce.sh")
+                                n_instances = n_instances - 1
+                        else:
+                            time.sleep(time_sleeping)
+                            print("The system no will be oversized.")
+                    else:
+                        time.sleep(time_sleeping)
+                        print("The system no will be oversized.")
+        else:
+            if (pd_ram_usage > threshold_ram_max) or (pd_ram_usage < threshold_ram_min):
+                time.sleep(time_sleeping)
+                print("The system may exceed any of the thresholds.")
+            else:
+                time.sleep(time_sleeping)
+                print("Maintains normal behavior.")
+    
+    return pd_ram_usage """
+
+""" def thrgpt_algorithm(thrgpt_usage, threshold_thrgpt_max, n_instances):
+    global predictions
+    global anomaly
+    global anomalyProb
+
+    time_sleeping     = 30
+    predictions = {1: [], 5: []}
+    anomaly     = []
+    anomalyProb = []
+
+    ##############################
+    # MAKE THE PREDICTION WITH HTM
+    ##############################
+    # Auto-scaling Algorithm for THROUGHPUT values
+    consumptionBits = scalarEncoder.encode(thrgpt_usage)
+
+    # Concatenate all these encodings into one large encoding for Spatial Pooling.
+    encoding = SDR( encodingWidth ).concatenate([consumptionBits, dateBits])
+    enc_info.addData( encoding )
+
+    # Create an SDR to represent active columns, This will be populated by the
+    # compute method below. It must have the same dimensions as the Spatial Pooler.
+    activeColumns = SDR( sp.getColumnDimensions() )
+
+    # Execute Spatial Pooling algorithm over input space.
+    sp.compute(encoding, True, activeColumns)
+    sp_info.addData( activeColumns )
+
+    # Execute Temporal Memory algorithm over active mini-columns.
+    tm.compute(activeColumns, learn=True)
+    tm_info.addData( tm.getActiveCells().flatten() )
+
+    # Predict what will happen, and then train the predictor based on what just happened.
+    pdf = predictor.infer( tm.getActiveCells() )
+    for n in (1, 5):
+        if pdf[n]:
+            predictions[n].append( np.argmax( pdf[n] ) * predictor_resolution )
+        else:
+            predictions[n].append(float('nan'))
+
+    # Compute Anomaly Likelihood
+    anomalyLikelihood = anomaly_history.anomalyProbability( thrgpt_usage, tm.anomaly )
+    anomaly.append( tm.anomaly )
+    anomalyProb.append( float(2*(1-anomalyLikelihood)) )
+
+    # Learning
+    predictor.learn(count, tm.getActiveCells(), int( thrgpt_usage / predictor_resolution))
+    
+    ###########################
+    # ALGORITHM FOR AUTOSCALING
+    ###########################
+    pd_thrgpt_usage = float(predictions[1][-1])
+    print("thrgpt_usage is:", thrgpt_usage)
+    print("pd_thrgpt_usage is:", pd_thrgpt_usage)
+    if (thrgpt_usage > threshold_thrgpt_max) and (n_instances == 1):
+        if (pd_thrgpt_usage > threshold_thrgpt_max):
+            print("The system will saturate")
+            os.system("sh ~/autoscaling/autoscale.sh")
+            n_instances = n_instances + 1
+        else:
+            time.sleep(time_sleeping)  # Sleep while new data is getting
+            if (thrgpt_usage > threshold_thrgpt_max) and (n_instances == 1):
+                print("Wrong prediction. The system will saturate.")
+                os.system("sh ~/autoscaling/autoscale.sh")
+                n_instances = n_instances + 1
+            else:
+                if (pd_thrgpt_usage > threshold_thrgpt_max):
+                    time.sleep(time_sleeping)
+                    if (thrgpt_usage > threshold_thrgpt_max) and (n_instances == 1):
+                        print("Correct prediction. The system will saturate.")
+                        os.system("sh ~/autoscaling/autoscale.sh")
+                        n_instances = n_instances + 1
+                    else:
+                        time.sleep(time_sleeping)
+                        print("The system it was not saturate.")
+                else:
+                    time.sleep(time_sleeping)
+                    print("The system will not saturate.")
+    
+    return pd_thrgpt_usage """
 
 def stress_server(data):
     # Initial Message
@@ -257,7 +520,7 @@ def stress_server(data):
         print("Process date: ", dateString)
 
         # Call the encoders to create bit representations for each value.  These are SDR objects.
-        dateBits        = dateEncoder.encode(dateString)
+        dateBits = dateEncoder.encode(dateString)
 
         # Convert data value string into float.
         consumption = float(row[0])/1024
@@ -273,13 +536,12 @@ def stress_server(data):
         rps = avg_bytes//length_httpget   # Integer part of division.
 
         # Asume only the 0.00001% of this rps for testing. For instance, a neighborhood in a big city. 
-        # Consider that I not implemented a LB system, the else condition allow divide the load to the 
-        # server as a load balancer system.
+        # Consider that I not implemented a LB system, the else condition allow divide the load to the server as a load balancer system.
         if n_instances == 1:
             factor = 10
             rps = int(rps//(100000*factor))
         else:
-            factor = 80
+            factor = 100
             rps = int(rps//(100000*factor))
         print("rps:", rps)
         
@@ -292,11 +554,11 @@ def stress_server(data):
         # Read resources values
         cpu_usage, ram_usage, thrgpt_usage_to_append =  get_resources_values()
         thrgpt_usage.append(thrgpt_usage_to_append)
-        print("ram usage is:", ram_usage)
-        print("throughput value is:", thrgpt_usage_to_append)
 
-        # CPU Algorithm
-        pd_cpu_usage = cpu_algorithm(cpu_usage,n_instances)
+        # CPU, RAM and Throughput algorithm
+        pd_cpu_usage = cpu_algorithm(cpu_usage, n_instances)
+        # pd_ram_usage = ram_algorithm(ram_usage, n_instances)
+        # pd_thrgpt_usage = thrgpt_algorithm(thrgpt_usage_to_append, np.percentile(thrgpt_usage, 95), n_instances)
         
         # Sleep a 1/4500 elapse time.
         s = int(rps//4500)
@@ -325,7 +587,6 @@ def stress_server(data):
 def main():
     data = pd.read_excel('../docs/files/Thesis_Real_Mobile_Data_DL_Traffic_202006.xlsx', index_col=0)
     building_htm(len(data))
-    global_thresholds()
     stress_server(data)
 
 if __name__ == "__main__":
