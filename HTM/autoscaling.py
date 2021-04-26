@@ -547,9 +547,9 @@ def stress_server(data):
         
         # Use Apache Bench for stress the server
         if rps > 10000:
-            command_cpu = "ab -n "+str(rps)+" -c 1000 "+str(server_ep)+" &"
+            command_cpu = "ab -d -S -q -n "+str(rps)+" -c 1000 "+str(server_ep)+" &"
         else:
-            command_cpu = "ab -n "+str(rps)+" -c 100 "+str(server_ep)+" &"
+            command_cpu = "ab -d -S -q -n "+str(rps)+" -c 100 "+str(server_ep)+" &"
 
         # Read resources values
         cpu_usage, ram_usage, thrgpt_usage_to_append =  get_resources_values()
@@ -572,7 +572,7 @@ def stress_server(data):
 
         # Execute the stress CPU, NIC and RAM test.
         os.system(command_cpu)
-        os.system("ssh debian@172.16.101.10 'stress-ng --vm 1 --vm-bytes "+str(stress_ram)+" --timeout "+str(s_ram)+"' &")
+        os.system("ssh debian@172.16.101.10 'stress-ng -q --vm 1 --vm-bytes "+str(stress_ram)+" --timeout "+str(s_ram)+"' &")
 
         # Sleep for a time.
         if n_instances == 1:
