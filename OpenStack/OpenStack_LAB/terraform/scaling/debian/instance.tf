@@ -30,7 +30,7 @@ resource "openstack_compute_instance_v2" "debian-buster" {
 }
 
 data "openstack_networking_floatingip_v2" "debian-buster-fip" {
-    address  = "10.80.81.191"
+    address  = "10.80.81.205"
 }
 
 
