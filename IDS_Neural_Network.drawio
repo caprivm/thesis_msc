@@ -1,11 +1,47 @@
-<mxfile host="app.diagrams.net" modified="2021-10-07T03:26:58.471Z" agent="5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.71 Safari/537.36" etag="4Dw0G_ACWdITjjgh-Luh" version="15.4.3" type="github">
+<mxfile host="app.diagrams.net" modified="2021-10-07T03:46:04.854Z" agent="5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.71 Safari/537.36" etag="jLdBVO6Lo9BVGWLginMW" version="15.4.3" type="github">
   <diagram id="EMvGMMCxx6XKPEilyFKA" name="Page-1">
-    <mxGraphModel dx="1248" dy="677" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+    <mxGraphModel dx="1040" dy="564" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="Y4Wwu05qVqmn_QEh-_5p-1" value="Dataset" style="shape=datastore;whiteSpace=wrap;html=1;" vertex="1" parent="1">
-          <mxGeometry x="150" y="120" width="60" height="80" as="geometry" />
+        <mxCell id="Y4Wwu05qVqmn_QEh-_5p-3" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FAFAFA;strokeColor=#666666;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="140" y="120" width="560" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="Y4Wwu05qVqmn_QEh-_5p-4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="Y4Wwu05qVqmn_QEh-_5p-1" target="Y4Wwu05qVqmn_QEh-_5p-6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Y4Wwu05qVqmn_QEh-_5p-1" value="CIC-IDS&lt;br&gt;Dataset" style="shape=datastore;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="50" y="134" width="60" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="Y4Wwu05qVqmn_QEh-_5p-5" value="Data Cleansing" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="350" y="120" width="140" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="Y4Wwu05qVqmn_QEh-_5p-8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="Y4Wwu05qVqmn_QEh-_5p-6" target="Y4Wwu05qVqmn_QEh-_5p-7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Y4Wwu05qVqmn_QEh-_5p-6" value="Delete duplicates" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="155" y="153.5" width="90" height="41" as="geometry" />
+        </mxCell>
+        <mxCell id="Y4Wwu05qVqmn_QEh-_5p-10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="Y4Wwu05qVqmn_QEh-_5p-7" target="Y4Wwu05qVqmn_QEh-_5p-9">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Y4Wwu05qVqmn_QEh-_5p-7" value="Normalize data" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="263" y="153.5" width="80" height="41" as="geometry" />
+        </mxCell>
+        <mxCell id="Y4Wwu05qVqmn_QEh-_5p-14" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="Y4Wwu05qVqmn_QEh-_5p-9" target="Y4Wwu05qVqmn_QEh-_5p-13">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Y4Wwu05qVqmn_QEh-_5p-9" value="Delete null records" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="360" y="153.5" width="80" height="41" as="geometry" />
+        </mxCell>
+        <mxCell id="Y4Wwu05qVqmn_QEh-_5p-12" value="Delete Irrelevant Labels" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="587" y="153.5" width="99" height="41" as="geometry" />
+        </mxCell>
+        <mxCell id="Y4Wwu05qVqmn_QEh-_5p-18" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="Y4Wwu05qVqmn_QEh-_5p-13" target="Y4Wwu05qVqmn_QEh-_5p-12">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Y4Wwu05qVqmn_QEh-_5p-13" value="Delete data without variance" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="458" y="153.5" width="110" height="41" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
