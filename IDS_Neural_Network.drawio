@@ -1,4 +1,4 @@
-<mxfile host="app.diagrams.net" modified="2021-11-09T01:48:55.059Z" agent="5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/95.0.4638.69 Safari/537.36" etag="E7wkMjxbELEw5fGZAPXS" version="15.7.0" type="github" pages="3">
+<mxfile host="app.diagrams.net" modified="2021-11-09T01:50:44.801Z" agent="5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/95.0.4638.69 Safari/537.36" etag="sbQ8cfsoFKkH-3UKOTKI" version="15.7.0" type="github" pages="3">
   <diagram id="EMvGMMCxx6XKPEilyFKA" name="IDS-Paper">
     <mxGraphModel dx="748" dy="401" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
       <root>
@@ -347,7 +347,7 @@
         <mxCell id="o01pVLBMB4gcDrM5dN8s-1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=default;fontFamily=Helvetica;fontSize=10;fontColor=default;strokeColor=default;" parent="L6ng9AGCWJKJYdQ31cqa-1" source="jMyEVQuGqoWBW6xNSCqy-25" target="o01pVLBMB4gcDrM5dN8s-0" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="jMyEVQuGqoWBW6xNSCqy-25" value="SVM" style="rounded=0;whiteSpace=wrap;html=1;shadow=0;glass=0;labelBackgroundColor=none;sketch=0;fontFamily=Helvetica;fontSize=10;strokeColor=#6c8ebf;fillColor=#dae8fc;rotation=-90;fontColor=default;" parent="L6ng9AGCWJKJYdQ31cqa-1" vertex="1">
+        <mxCell id="jMyEVQuGqoWBW6xNSCqy-25" value="Linear SVM" style="rounded=0;whiteSpace=wrap;html=1;shadow=0;glass=0;labelBackgroundColor=none;sketch=0;fontFamily=Helvetica;fontSize=10;strokeColor=#6c8ebf;fillColor=#dae8fc;rotation=-90;fontColor=default;" parent="L6ng9AGCWJKJYdQ31cqa-1" vertex="1">
           <mxGeometry x="810" y="61.25" width="95" height="22.5" as="geometry" />
         </mxCell>
         <mxCell id="o01pVLBMB4gcDrM5dN8s-0" value="" style="sketch=0;outlineConnect=0;fontColor=default;gradientColor=none;fillColor=#4D4D4D;strokeColor=default;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;pointerEvents=1;shape=mxgraph.aws4.container_registry_image;shadow=0;glass=0;fontFamily=Helvetica;labelBackgroundColor=default;" parent="L6ng9AGCWJKJYdQ31cqa-1" vertex="1">
